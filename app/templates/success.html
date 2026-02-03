@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Order Confirmed - Protein Perks{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="bg-white rounded-lg shadow-md p-8 text-center">
+        <!-- Success Icon -->
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Order Confirmed!</h1>
+        <p class="text-xl text-gray-600 mb-8">Thank you for your purchase</p>
+
+        <!-- Order Details -->
+        <div class="bg-gray-50 rounded-lg p-6 mb-8 text-left">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Order Details</h2>
+
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Order ID:</span>
+                    <span class="font-semibold text-gray-900">#{{ order.id }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Payment ID:</span>
+                    <span class="font-mono text-sm text-gray-900">{{ order.razorpay_payment_id }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Total Amount:</span>
+                    <span class="font-bold text-indigo-600 text-xl">₹{{ order.total_amount }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Status:</span>
+                    <span
+                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        ✓ {{ order.payment_status|title }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shipping Details -->
+        <div class="bg-gray-50 rounded-lg p-6 mb-8 text-left">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Shipping To:</h2>
+            <div class="text-gray-700">
+                <p class="font-semibold">{{ order.customer_name }}</p>
+                <p>{{ order.customer_email }}</p>
+                <p>{{ order.customer_phone }}</p>
+                <p class="mt-2">{{ order.shipping_address }}</p>
+                <p>{{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+            </div>
+        </div>
+
+        <!-- Order Items -->
+        <div class="bg-gray-50 rounded-lg p-6 mb-8 text-left">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Order Items:</h2>
+            <div class="space-y-3">
+                {% for item in order.items %}
+                <div class="flex items-center gap-4 pb-3 border-b border-gray-200 last:border-0">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-900">{{ item.product_name }}</h4>
+                        <p class="text-sm text-gray-600">{{ item.product_brand }} | {{ item.product_weight }}</p>
+                        <p class="text-sm text-gray-600">Qty: {{ item.quantity }} × ₹{{ item.price_per_unit }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-gray-900">₹{{ item.subtotal }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-4 justify-center">
+            <a href="/products"
+                class="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition">
+                Continue Shopping
+            </a>
+            <a href="/"
+                class="border-2 border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition">
+                Back to Home
+            </a>
+        </div>
+
+        <!-- Confirmation Message -->
+        <div class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-blue-800">
+                📧 A confirmation email has been sent to <strong>{{ order.customer_email }}</strong>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
