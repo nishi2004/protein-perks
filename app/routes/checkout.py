@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.database import SessionLocal
 from app.services import cart_service, payment_service
 from app.models.order import Order, OrderItem
+from app.utils.email_sender import send_order_email   # Make sure path is correct
 
 
 router = APIRouter()
@@ -176,6 +177,8 @@ async def payment_success(request: Request):
         db.refresh(order)
 
         # Save items
+        order_details = ""
+
         for item in cart.values():
 
             subtotal = item["price"] * item["quantity"]
@@ -196,7 +199,34 @@ async def payment_success(request: Request):
 
             db.add(order_item)
 
+            order_details += f"""
+{item['name']} x {item['quantity']} = ₹{subtotal}
+"""
+
         db.commit()
+
+        # Prepare Email Message
+        email_message = f"""
+New Order Received - ProteinPerks
+
+Order ID: {order.id}
+
+Customer Name: {customer['name']}
+Email: {customer['email']}
+Phone: {customer['phone']}
+
+Address:
+{customer['address']}
+{customer['city']}, {customer['state']} - {customer['pincode']}
+
+Total Amount: ₹{total_amount}
+
+Items:
+{order_details}
+"""
+
+        # Send Email
+        send_order_email(email_message)
 
         # Clear cart
         cart_service.clear_cart(request.session)
