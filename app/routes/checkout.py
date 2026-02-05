@@ -15,7 +15,7 @@ from app.utils.email_sender import send_order_email
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-COD_CHARGE = 80   # Change to 100 if needed
+COD_CHARGE = 80   # COD Extra Charge
 
 
 # ===============================
@@ -28,6 +28,7 @@ async def checkout_page(request: Request):
     db = SessionLocal()
 
     try:
+
         cart_items, total = cart_service.get_cart_items(request.session, db)
 
         if not cart_items:
@@ -57,6 +58,7 @@ async def checkout_page(request: Request):
 
 @router.post("/checkout/create-order")
 async def create_checkout_order(
+
     request: Request,
 
     name: str = Form(...),
@@ -71,12 +73,17 @@ async def create_checkout_order(
     db = SessionLocal()
 
     try:
+
         cart_items, total = cart_service.get_cart_items(request.session, db)
 
         if not cart_items:
-            return JSONResponse({"success": False})
+            return JSONResponse({
+                "success": False,
+                "message": "Cart empty"
+            })
 
-        # Save customer
+
+        # Save customer in session
         request.session["customer_data"] = {
             "name": name,
             "email": email,
@@ -87,11 +94,13 @@ async def create_checkout_order(
             "pincode": pincode
         }
 
-        # Razorpay order
+
+        # Create Razorpay Order
         razorpay_order = payment_service.create_razorpay_order(
             amount=total,
             receipt=f"order_{email}"
         )
+
 
         return JSONResponse({
             "success": True,
@@ -100,12 +109,14 @@ async def create_checkout_order(
             "key_id": payment_service.get_razorpay_key_id()
         })
 
+
     except Exception as e:
 
         return JSONResponse({
             "success": False,
             "message": str(e)
         })
+
 
     finally:
         db.close()
@@ -121,17 +132,23 @@ async def payment_success(request: Request):
     db = SessionLocal()
 
     try:
+
         data = await request.json()
 
         customer = request.session.get("customer_data")
         cart = cart_service.get_cart(request.session)
 
+
         if not customer or not cart:
-            return JSONResponse({"success": False})
+            return JSONResponse({
+                "success": False,
+                "message": "Session expired"
+            })
 
 
         total_amount = 0
         order_details = ""
+
 
         for item in cart.values():
 
@@ -141,11 +158,13 @@ async def payment_success(request: Request):
             order_details += f"{item['name']} x {item['quantity']} = ₹{subtotal}\n"
 
 
-        # Create order
+        # Create Order
         order = Order(
+
             customer_name=customer["name"],
             customer_email=customer["email"],
             customer_phone=customer["phone"],
+
             shipping_address=customer["address"],
             city=customer["city"],
             state=customer["state"],
@@ -161,17 +180,19 @@ async def payment_success(request: Request):
             order_status="confirmed"
         )
 
+
         db.add(order)
         db.commit()
         db.refresh(order)
 
 
-        # Save items
+        # Save Items
         for item in cart.values():
 
             subtotal = item["price"] * item["quantity"]
 
             db.add(OrderItem(
+
                 order_id=order.id,
 
                 product_id=item["id"],
@@ -184,6 +205,7 @@ async def payment_success(request: Request):
                 price_per_unit=item["price"],
                 subtotal=subtotal
             ))
+
 
         db.commit()
 
@@ -205,17 +227,23 @@ Items:
 """)
 
 
+        # Clear Cart
         cart_service.clear_cart(request.session)
         request.session.pop("customer_data", None)
 
-        return JSONResponse({"success": True})
+
+        return JSONResponse({
+            "success": True,
+            "message": "Order confirmed"
+        })
+
 
     finally:
         db.close()
 
 
 # ===============================
-# COD ORDER
+# CASH ON DELIVERY
 # ===============================
 
 @router.post("/checkout/cod")
@@ -224,15 +252,21 @@ async def cod_order(request: Request):
     db = SessionLocal()
 
     try:
+
         customer = request.session.get("customer_data")
         cart = cart_service.get_cart(request.session)
 
+
         if not customer or not cart:
-            return JSONResponse({"success": False})
+            return JSONResponse({
+                "success": False,
+                "message": "Session expired"
+            })
 
 
         total_amount = COD_CHARGE
         order_details = ""
+
 
         for item in cart.values():
 
@@ -242,10 +276,13 @@ async def cod_order(request: Request):
             order_details += f"{item['name']} x {item['quantity']} = ₹{subtotal}\n"
 
 
+        # Create COD Order
         order = Order(
+
             customer_name=customer["name"],
             customer_email=customer["email"],
             customer_phone=customer["phone"],
+
             shipping_address=customer["address"],
             city=customer["city"],
             state=customer["state"],
@@ -254,20 +291,22 @@ async def cod_order(request: Request):
             total_amount=total_amount,
 
             payment_status="COD",
-            order_status="pending"
+            order_status="confirmed"
         )
+
 
         db.add(order)
         db.commit()
         db.refresh(order)
 
 
-        # Save items
+        # Save Items
         for item in cart.values():
 
             subtotal = item["price"] * item["quantity"]
 
             db.add(OrderItem(
+
                 order_id=order.id,
 
                 product_id=item["id"],
@@ -281,10 +320,11 @@ async def cod_order(request: Request):
                 subtotal=subtotal
             ))
 
+
         db.commit()
 
 
-        # Email
+        # Send Email
         send_order_email(f"""
 New COD Order - ProteinPerks
 
@@ -292,6 +332,7 @@ Order ID: {order.id}
 
 Customer: {customer['name']}
 Phone: {customer['phone']}
+Email: {customer['email']}
 
 Total (Including COD ₹{COD_CHARGE}): ₹{total_amount}
 
@@ -300,10 +341,16 @@ Items:
 """)
 
 
+        # Clear Cart
         cart_service.clear_cart(request.session)
         request.session.pop("customer_data", None)
 
-        return JSONResponse({"success": True})
+
+        return JSONResponse({
+            "success": True,
+            "message": "Your order is confirmed!"
+        })
+
 
     finally:
         db.close()
