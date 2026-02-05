@@ -92,6 +92,8 @@
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 <script>
 
 const form = document.getElementById("checkout-form");
@@ -99,13 +101,15 @@ const payBtn = document.getElementById("pay-btn");
 const codBtn = document.getElementById("cod-btn");
 
 
-// ONLINE PAYMENT
+// ================= ONLINE PAYMENT =================
+
 form.addEventListener("submit", async (e) => {
 
   e.preventDefault();
 
   const formData = new FormData(form);
 
+  // Save customer + create razorpay order
   const res = await fetch("/checkout/create-order", {
     method: "POST",
     body: formData
@@ -113,7 +117,7 @@ form.addEventListener("submit", async (e) => {
 
   const data = await res.json();
 
-  if(!data.success){
+  if (!data.success) {
     alert("Payment Failed");
     return;
   }
@@ -123,7 +127,6 @@ form.addEventListener("submit", async (e) => {
     amount: data.amount,
     currency: "INR",
     name: "ProteinPerks",
-
     order_id: data.order_id,
 
     handler: async function (response) {
@@ -135,7 +138,7 @@ form.addEventListener("submit", async (e) => {
       });
 
       alert("Order Placed Successfully!");
-      window.location.href="/";
+      window.location.href = "/";
     }
   };
 
@@ -145,32 +148,43 @@ form.addEventListener("submit", async (e) => {
 });
 
 
-// COD ORDER
-codBtn.addEventListener("click", async ()=>{
+// ================= COD PAYMENT =================
+
+codBtn.addEventListener("click", async () => {
 
   const formData = new FormData(form);
 
-  await fetch("/checkout/create-order", {
-    method:"POST",
-    body:formData
+
+  // STEP 1: Save customer info
+  const saveRes = await fetch("/checkout/create-order", {
+    method: "POST",
+    body: formData
   });
 
-  const res = await fetch("/checkout/cod",{
-    method:"POST"
+  const saveData = await saveRes.json();
+
+  if (!saveData.success) {
+    alert("Please fill all details properly");
+    return;
+  }
+
+
+  // STEP 2: Place COD Order
+  const res = await fetch("/checkout/cod", {
+    method: "POST"
   });
 
   const data = await res.json();
 
-  if(data.success){
-    alert("COD Order Placed!");
-    window.location.href="/";
-  }
-  else{
-    alert("COD Failed");
+
+  if (data.success) {
+    alert("COD Order Placed Successfully!");
+    window.location.href = "/";
+  } 
+  else {
+    alert("COD Failed. Try Again.");
   }
 
 });
 
 </script>
-
-{% endblock %}
