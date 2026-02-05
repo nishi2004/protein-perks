@@ -11,7 +11,7 @@
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
 
-    <!-- FORM -->
+    <!-- ================= FORM ================= -->
     <div class="bg-white p-8 shadow rounded">
 
       <h2 class="text-xl font-bold mb-4">Shipping Details</h2>
@@ -34,8 +34,9 @@
         <input name="pincode" placeholder="Pincode" required class="input">
 
 
-        <!-- ONLINE PAY -->
+        <!-- ONLINE PAYMENT -->
         <button id="pay-btn"
+          type="submit"
           class="w-full mt-4 bg-indigo-600 text-white py-3 rounded">
 
           Pay Online ₹{{ total }}
@@ -57,7 +58,7 @@
     </div>
 
 
-    <!-- SUMMARY -->
+    <!-- ================= SUMMARY ================= -->
     <div class="bg-white p-8 shadow rounded">
 
       <h2 class="text-xl font-bold mb-4">Order Summary</h2>
@@ -88,9 +89,8 @@
 {% endblock %}
 
 
-{% block extra_scripts %}
 
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% block extra_scripts %}
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
@@ -109,7 +109,6 @@ form.addEventListener("submit", async (e) => {
 
   const formData = new FormData(form);
 
-  // Save customer + create razorpay order
   const res = await fetch("/checkout/create-order", {
     method: "POST",
     body: formData
@@ -133,7 +132,9 @@ form.addEventListener("submit", async (e) => {
 
       await fetch("/checkout/payment-success", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(response)
       });
 
@@ -148,14 +149,13 @@ form.addEventListener("submit", async (e) => {
 });
 
 
-// ================= COD PAYMENT =================
+// ================= COD =================
 
 codBtn.addEventListener("click", async () => {
 
   const formData = new FormData(form);
 
-
-  // STEP 1: Save customer info
+  // Save customer info
   const saveRes = await fetch("/checkout/create-order", {
     method: "POST",
     body: formData
@@ -164,27 +164,27 @@ codBtn.addEventListener("click", async () => {
   const saveData = await saveRes.json();
 
   if (!saveData.success) {
-    alert("Please fill all details properly");
+    alert("Fill all details properly");
     return;
   }
 
-
-  // STEP 2: Place COD Order
+  // Place COD order
   const res = await fetch("/checkout/cod", {
     method: "POST"
   });
 
   const data = await res.json();
 
-
   if (data.success) {
     alert("COD Order Placed Successfully!");
     window.location.href = "/";
   } 
   else {
-    alert("COD Failed. Try Again.");
+    alert("COD Failed. Try again.");
   }
 
 });
 
 </script>
+
+{% endblock %}
