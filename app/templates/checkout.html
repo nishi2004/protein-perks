@@ -176,11 +176,16 @@ codBtn.addEventListener("click", async () => {
   const data = await res.json();
 
   if (data.success) {
-    alert("COD Order Placed Successfully!");
+
+    // ✅ SHOW BACKEND MESSAGE
+    alert(data.message);
+
     window.location.href = "/";
   } 
   else {
-    alert("COD Failed. Try again.");
+
+    alert(data.message || "COD Failed. Try again.");
+
   }
 
 });
