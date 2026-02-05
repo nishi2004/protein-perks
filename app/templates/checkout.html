@@ -4,49 +4,51 @@
 
 {% block content %}
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<div class="max-w-7xl mx-auto px-4 py-12">
 
-  <h1 class="text-4xl font-bold text-gray-900 mb-8">Checkout</h1>
+  <h1 class="text-3xl font-bold mb-8">Checkout</h1>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-    <!-- Customer Form -->
-    <div class="bg-white rounded-lg shadow-md p-8">
 
-      <h2 class="text-2xl font-bold text-gray-900 mb-6">
-        Shipping Details
-      </h2>
+    <!-- FORM -->
+    <div class="bg-white p-8 shadow rounded">
+
+      <h2 class="text-xl font-bold mb-4">Shipping Details</h2>
 
       <form id="checkout-form">
 
-        <div class="space-y-4">
+        <input name="name" placeholder="Full Name" required class="input">
 
-          <input name="name" placeholder="Full Name" required class="w-full p-2 border rounded">
+        <input name="email" type="email" placeholder="Email" required class="input">
 
-          <input type="email" name="email" placeholder="Email" required class="w-full p-2 border rounded">
+        <input name="phone" placeholder="Phone" required class="input">
 
-          <input name="phone" placeholder="Phone" required pattern="[0-9]{10}" class="w-full p-2 border rounded">
+        <textarea name="address" placeholder="Address" required class="input"></textarea>
 
-          <textarea name="address" placeholder="Address" required class="w-full p-2 border rounded"></textarea>
-
-          <div class="grid grid-cols-2 gap-4">
-
-            <input name="city" placeholder="City" required class="w-full p-2 border rounded">
-
-            <input name="state" placeholder="State" required class="w-full p-2 border rounded">
-
-          </div>
-
-          <input name="pincode" placeholder="Pincode" required pattern="[0-9]{6}" class="w-full p-2 border rounded">
-
+        <div class="grid grid-cols-2 gap-3">
+          <input name="city" placeholder="City" required class="input">
+          <input name="state" placeholder="State" required class="input">
         </div>
 
-        <button
-          id="pay-button"
-          type="submit"
-          class="w-full mt-6 bg-indigo-600 text-white py-3 rounded font-semibold">
+        <input name="pincode" placeholder="Pincode" required class="input">
 
-          Pay ₹{{ total }}
+
+        <!-- ONLINE PAY -->
+        <button id="pay-btn"
+          class="w-full mt-4 bg-indigo-600 text-white py-3 rounded">
+
+          Pay Online ₹{{ total }}
+
+        </button>
+
+
+        <!-- COD -->
+        <button id="cod-btn"
+          type="button"
+          class="w-full mt-3 bg-green-600 text-white py-3 rounded">
+
+          Cash On Delivery (+₹{{ cod_charge }})
 
         </button>
 
@@ -55,34 +57,29 @@
     </div>
 
 
-    <!-- Summary -->
-    <div class="bg-white shadow-md p-8 rounded">
+    <!-- SUMMARY -->
+    <div class="bg-white p-8 shadow rounded">
 
-      <h2 class="text-2xl font-bold mb-6">Order Summary</h2>
+      <h2 class="text-xl font-bold mb-4">Order Summary</h2>
 
       {% for item in cart_items %}
-
-      <div class="flex justify-between border-b py-2">
-
-        <div>
-          <b>{{ item.product.name }}</b><br>
-          Qty: {{ item.quantity }}
-        </div>
-
-        <div>₹{{ item.subtotal }}</div>
-
+      <div class="flex justify-between py-2 border-b">
+        <span>{{ item.product.name }} ({{ item.quantity }})</span>
+        <span>₹{{ item.subtotal }}</span>
       </div>
-
       {% endfor %}
 
-      <div class="mt-4 text-xl font-bold flex justify-between">
-
+      <div class="mt-4 text-lg font-bold flex justify-between">
         <span>Total</span>
         <span>₹{{ total }}</span>
+      </div>
 
+      <div class="mt-2 text-sm text-gray-600">
+        COD Charge: ₹{{ cod_charge }}
       </div>
 
     </div>
+
 
   </div>
 
@@ -94,12 +91,86 @@
 {% block extra_scripts %}
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script src="/static/js/checkout.js"></script>
 
 <script>
-const totalAmount = Number("{{ total }}");
-const razorpayKeyId = "{{ razorpay_key_id }}";
-</script>
 
+const form = document.getElementById("checkout-form");
+const payBtn = document.getElementById("pay-btn");
+const codBtn = document.getElementById("cod-btn");
+
+
+// ONLINE PAYMENT
+form.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  const formData = new FormData(form);
+
+  const res = await fetch("/checkout/create-order", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+
+  if(!data.success){
+    alert("Payment Failed");
+    return;
+  }
+
+  const options = {
+    key: data.key_id,
+    amount: data.amount,
+    currency: "INR",
+    name: "ProteinPerks",
+
+    order_id: data.order_id,
+
+    handler: async function (response) {
+
+      await fetch("/checkout/payment-success", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(response)
+      });
+
+      alert("Order Placed Successfully!");
+      window.location.href="/";
+    }
+  };
+
+  const rzp = new Razorpay(options);
+  rzp.open();
+
+});
+
+
+// COD ORDER
+codBtn.addEventListener("click", async ()=>{
+
+  const formData = new FormData(form);
+
+  await fetch("/checkout/create-order", {
+    method:"POST",
+    body:formData
+  });
+
+  const res = await fetch("/checkout/cod",{
+    method:"POST"
+  });
+
+  const data = await res.json();
+
+  if(data.success){
+    alert("COD Order Placed!");
+    window.location.href="/";
+  }
+  else{
+    alert("COD Failed");
+  }
+
+});
+
+</script>
 
 {% endblock %}

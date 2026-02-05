@@ -9,11 +9,13 @@ from fastapi.templating import Jinja2Templates
 from app.core.database import SessionLocal
 from app.services import cart_service, payment_service
 from app.models.order import Order, OrderItem
-from app.utils.email_sender import send_order_email   # Make sure path is correct
+from app.utils.email_sender import send_order_email
 
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+COD_CHARGE = 80   # Change to 100 if needed
 
 
 # ===============================
@@ -40,7 +42,8 @@ async def checkout_page(request: Request):
                 "cart_items": cart_items,
                 "total": total,
                 "cart_count": cart_count,
-                "razorpay_key_id": payment_service.get_razorpay_key_id()
+                "razorpay_key_id": payment_service.get_razorpay_key_id(),
+                "cod_charge": COD_CHARGE
             }
         )
 
@@ -71,12 +74,9 @@ async def create_checkout_order(
         cart_items, total = cart_service.get_cart_items(request.session, db)
 
         if not cart_items:
-            return JSONResponse({
-                "success": False,
-                "message": "Cart is empty"
-            }, status_code=400)
+            return JSONResponse({"success": False})
 
-        # Save customer in session
+        # Save customer
         request.session["customer_data"] = {
             "name": name,
             "email": email,
@@ -87,33 +87,32 @@ async def create_checkout_order(
             "pincode": pincode
         }
 
-        try:
-            razorpay_order = payment_service.create_razorpay_order(
-                amount=total,
-                receipt=f"order_{email}_{int(total)}"
-            )
+        # Razorpay order
+        razorpay_order = payment_service.create_razorpay_order(
+            amount=total,
+            receipt=f"order_{email}"
+        )
 
-            return JSONResponse({
-                "success": True,
-                "order_id": razorpay_order["id"],
-                "amount": razorpay_order["amount"],
-                "currency": razorpay_order["currency"],
-                "key_id": payment_service.get_razorpay_key_id()
-            })
+        return JSONResponse({
+            "success": True,
+            "order_id": razorpay_order["id"],
+            "amount": razorpay_order["amount"],
+            "key_id": payment_service.get_razorpay_key_id()
+        })
 
-        except Exception as e:
+    except Exception as e:
 
-            return JSONResponse({
-                "success": False,
-                "message": str(e)
-            }, status_code=500)
+        return JSONResponse({
+            "success": False,
+            "message": str(e)
+        })
 
     finally:
         db.close()
 
 
 # ===============================
-# SAVE ORDER AFTER PAYMENT
+# ONLINE PAYMENT SUCCESS
 # ===============================
 
 @router.post("/checkout/payment-success")
@@ -124,35 +123,25 @@ async def payment_success(request: Request):
     try:
         data = await request.json()
 
-        razorpay_order_id = data.get("razorpay_order_id")
-        razorpay_payment_id = data.get("razorpay_payment_id")
-        razorpay_signature = data.get("razorpay_signature")
-
-        # Get customer info
         customer = request.session.get("customer_data")
-
-        if not customer:
-            return JSONResponse({
-                "success": False,
-                "message": "Customer data missing"
-            }, status_code=400)
-
-        # Get cart
         cart = cart_service.get_cart(request.session)
 
-        if not cart:
-            return JSONResponse({
-                "success": False,
-                "message": "Cart empty"
-            }, status_code=400)
+        if not customer or not cart:
+            return JSONResponse({"success": False})
 
-        # Calculate total
+
         total_amount = 0
+        order_details = ""
 
         for item in cart.values():
-            total_amount += item["price"] * item["quantity"]
 
-        # Create Order
+            subtotal = item["price"] * item["quantity"]
+            total_amount += subtotal
+
+            order_details += f"{item['name']} x {item['quantity']} = ₹{subtotal}\n"
+
+
+        # Create order
         order = Order(
             customer_name=customer["name"],
             customer_email=customer["email"],
@@ -164,9 +153,9 @@ async def payment_success(request: Request):
 
             total_amount=total_amount,
 
-            razorpay_order_id=razorpay_order_id,
-            razorpay_payment_id=razorpay_payment_id,
-            razorpay_signature=razorpay_signature,
+            razorpay_order_id=data.get("razorpay_order_id"),
+            razorpay_payment_id=data.get("razorpay_payment_id"),
+            razorpay_signature=data.get("razorpay_signature"),
 
             payment_status="success",
             order_status="confirmed"
@@ -176,14 +165,13 @@ async def payment_success(request: Request):
         db.commit()
         db.refresh(order)
 
-        # Save items
-        order_details = ""
 
+        # Save items
         for item in cart.values():
 
             subtotal = item["price"] * item["quantity"]
 
-            order_item = OrderItem(
+            db.add(OrderItem(
                 order_id=order.id,
 
                 product_id=item["id"],
@@ -195,47 +183,127 @@ async def payment_success(request: Request):
                 quantity=item["quantity"],
                 price_per_unit=item["price"],
                 subtotal=subtotal
-            )
-
-            db.add(order_item)
-
-            order_details += f"""
-{item['name']} x {item['quantity']} = ₹{subtotal}
-"""
+            ))
 
         db.commit()
 
-        # Prepare Email Message
-        email_message = f"""
-New Order Received - ProteinPerks
+
+        # Send Email
+        send_order_email(f"""
+New Online Order - ProteinPerks
 
 Order ID: {order.id}
 
-Customer Name: {customer['name']}
-Email: {customer['email']}
+Customer: {customer['name']}
 Phone: {customer['phone']}
+Email: {customer['email']}
 
-Address:
-{customer['address']}
-{customer['city']}, {customer['state']} - {customer['pincode']}
-
-Total Amount: ₹{total_amount}
+Total: ₹{total_amount}
 
 Items:
 {order_details}
-"""
+""")
 
-        # Send Email
-        send_order_email(email_message)
 
-        # Clear cart
         cart_service.clear_cart(request.session)
         request.session.pop("customer_data", None)
 
-        return JSONResponse({
-            "success": True,
-            "message": "Order saved"
-        })
+        return JSONResponse({"success": True})
+
+    finally:
+        db.close()
+
+
+# ===============================
+# COD ORDER
+# ===============================
+
+@router.post("/checkout/cod")
+async def cod_order(request: Request):
+
+    db = SessionLocal()
+
+    try:
+        customer = request.session.get("customer_data")
+        cart = cart_service.get_cart(request.session)
+
+        if not customer or not cart:
+            return JSONResponse({"success": False})
+
+
+        total_amount = COD_CHARGE
+        order_details = ""
+
+        for item in cart.values():
+
+            subtotal = item["price"] * item["quantity"]
+            total_amount += subtotal
+
+            order_details += f"{item['name']} x {item['quantity']} = ₹{subtotal}\n"
+
+
+        order = Order(
+            customer_name=customer["name"],
+            customer_email=customer["email"],
+            customer_phone=customer["phone"],
+            shipping_address=customer["address"],
+            city=customer["city"],
+            state=customer["state"],
+            pincode=customer["pincode"],
+
+            total_amount=total_amount,
+
+            payment_status="COD",
+            order_status="pending"
+        )
+
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+
+
+        # Save items
+        for item in cart.values():
+
+            subtotal = item["price"] * item["quantity"]
+
+            db.add(OrderItem(
+                order_id=order.id,
+
+                product_id=item["id"],
+                product_name=item["name"],
+                product_brand=item["brand"],
+                product_weight=item["weight"],
+                product_image=item["image"],
+
+                quantity=item["quantity"],
+                price_per_unit=item["price"],
+                subtotal=subtotal
+            ))
+
+        db.commit()
+
+
+        # Email
+        send_order_email(f"""
+New COD Order - ProteinPerks
+
+Order ID: {order.id}
+
+Customer: {customer['name']}
+Phone: {customer['phone']}
+
+Total (Including COD ₹{COD_CHARGE}): ₹{total_amount}
+
+Items:
+{order_details}
+""")
+
+
+        cart_service.clear_cart(request.session)
+        request.session.pop("customer_data", None)
+
+        return JSONResponse({"success": True})
 
     finally:
         db.close()
