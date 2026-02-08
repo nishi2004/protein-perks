@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %} 
 
 {% block title %}Checkout - Protein Perks{% endblock %}
 
@@ -34,38 +34,19 @@
         <input name="pincode" placeholder="Pincode" required class="input">
 
 
-        <!-- ONLINE PAYMENT -->
+        <!-- ================= UPI PAYMENT ================= -->
+
         <button id="upi-btn"
-        type="button"
-       class="w-full mt-3 bg-blue-600 text-white py-3 rounded">
+          type="button"
+          class="w-full mt-3 bg-blue-600 text-white py-3 rounded">
 
-         Pay via UPI
+          Pay via UPI
 
-       </button>
-       <script>
-
-const upiBtn = document.getElementById("upi-btn");
-
-upiBtn.addEventListener("click", () => {
-
-  alert(`
-Pay via UPI
-
-UPI ID: proteinperks@okaxis
-
-After payment,
-Send screenshot on WhatsApp
-or enter Transaction ID.
-`);
-
-});
-
-     </script>
+        </button>
 
 
+        <!-- ================= COD ================= -->
 
-
-        <!-- COD -->
         <button id="cod-btn"
           type="button"
           class="w-full mt-3 bg-green-600 text-white py-3 rounded">
@@ -113,59 +94,33 @@ or enter Transaction ID.
 
 {% block extra_scripts %}
 
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
 <script>
 
 const form = document.getElementById("checkout-form");
-const payBtn = document.getElementById("pay-btn");
+const upiBtn = document.getElementById("upi-btn");
 const codBtn = document.getElementById("cod-btn");
 
 
-// ================= ONLINE PAYMENT =================
+// ================= UPI =================
 
-form.addEventListener("submit", async (e) => {
-
-  e.preventDefault();
+upiBtn.addEventListener("click", () => {
 
   const formData = new FormData(form);
 
-  const res = await fetch("/checkout/create-order", {
-    method: "POST",
-    body: formData
-  });
-
-  const data = await res.json();
-
-  if (!data.success) {
-    alert("Payment Failed");
+  if (![...formData.values()].every(v => v.trim() !== "")) {
+    alert("Please fill all details first");
     return;
   }
 
-  const options = {
-    key: data.key_id,
-    amount: data.amount,
-    currency: "INR",
-    name: "ProteinPerks",
-    order_id: data.order_id,
+  alert(`
+Pay via UPI
 
-    handler: async function (response) {
+UPI ID: 9424862686@ybl
 
-      await fetch("/checkout/payment-success", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(response)
-      });
-
-      alert("Order Placed Successfully!");
-      window.location.href = "/";
-    }
-  };
-
-  const rzp = new Razorpay(options);
-  rzp.open();
+After payment,
+Send screenshot on WhatsApp (7898928129- Harshil Majawdiya)
+or enter Transaction ID.
+`);
 
 });
 
@@ -198,12 +153,10 @@ codBtn.addEventListener("click", async () => {
 
   if (data.success) {
 
-    // ✅ SHOW BACKEND MESSAGE
     alert(data.message);
-
     window.location.href = "/";
-  } 
-  else {
+
+  } else {
 
     alert(data.message || "COD Failed. Try again.");
 
