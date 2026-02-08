@@ -1,169 +1,155 @@
-{% extends "base.html" %} 
+"""
+Checkout Routes - Handle checkout flow and order creation
+"""
 
-{% block title %}Checkout - Protein Perks{% endblock %}
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
 
-{% block content %}
+from app.core.database import SessionLocal
+from app.services import cart_service, order_service
+from app.utils.email_sender import send_order_email
 
-<div class="max-w-7xl mx-auto px-4 py-12">
 
-  <h1 class="text-3xl font-bold mb-8">Checkout</h1>
+router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+COD_CHARGE = 80
 
 
-    <!-- ================= FORM ================= -->
-    <div class="bg-white p-8 shadow rounded">
+# ===============================
+# CHECKOUT PAGE
+# ===============================
 
-      <h2 class="text-xl font-bold mb-4">Shipping Details</h2>
+@router.get("/checkout", response_class=HTMLResponse)
+async def checkout_page(request: Request):
 
-      <form id="checkout-form">
+    db = SessionLocal()
 
-        <input name="name" placeholder="Full Name" required class="input">
+    try:
 
-        <input name="email" type="email" placeholder="Email" required class="input">
+        cart_items, total = cart_service.get_cart_items(
+            request.session, db
+        )
 
-        <input name="phone" placeholder="Phone" required class="input">
+        if not cart_items:
+            return RedirectResponse("/cart", status_code=302)
 
-        <textarea name="address" placeholder="Address" required class="input"></textarea>
+        cart_count = cart_service.get_cart_count(request.session)
 
-        <div class="grid grid-cols-2 gap-3">
-          <input name="city" placeholder="City" required class="input">
-          <input name="state" placeholder="State" required class="input">
-        </div>
+        return templates.TemplateResponse(
+            "checkout.html",
+            {
+                "request": request,
+                "cart_items": cart_items,
+                "total": total,
+                "cart_count": cart_count,
+                "cod_charge": COD_CHARGE
+            }
+        )
 
-        <input name="pincode" placeholder="Pincode" required class="input">
+    finally:
+        db.close()
 
 
-        <!-- ================= UPI PAYMENT ================= -->
+# ===============================
+# PLACE ORDER (COD / MANUAL UPI)
+# ===============================
 
-        <button id="upi-btn"
-          type="button"
-          class="w-full mt-3 bg-blue-600 text-white py-3 rounded">
+@router.post("/checkout/place-order")
+async def place_order(request: Request):
 
-          Pay via UPI
+    form = await request.form()
+    db = SessionLocal()
 
-        </button>
+    try:
 
+        # 1️⃣ Get cart
+        cart_items, total = cart_service.get_cart_items(
+            request.session, db
+        )
 
-        <!-- ================= COD ================= -->
+        if not cart_items:
+            return JSONResponse({
+                "success": False,
+                "message": "Cart is empty"
+            })
 
-        <button id="cod-btn"
-          type="button"
-          class="w-full mt-3 bg-green-600 text-white py-3 rounded">
 
-          Cash On Delivery (+₹{{ cod_charge }})
+        # 2️⃣ Customer data
+        customer_data = {
+            "name": form.get("name"),
+            "email": form.get("email"),
+            "phone": form.get("phone"),
+            "address": form.get("address"),
+            "city": form.get("city"),
+            "state": form.get("state"),
+            "pincode": form.get("pincode")
+        }
 
-        </button>
 
-      </form>
+        # 3️⃣ Payment Info (COD / Manual)
+        payment_info = {
+            "order_id": None,
+            "payment_id": None,
+            "signature": None
+        }
 
-    </div>
 
+        # 4️⃣ Create Order
+        order = order_service.create_order(
+            db=db,
+            customer_data=customer_data,
+            cart_items=cart_items,
+            payment_info=payment_info
+        )
 
-    <!-- ================= SUMMARY ================= -->
-    <div class="bg-white p-8 shadow rounded">
 
-      <h2 class="text-xl font-bold mb-4">Order Summary</h2>
+        # 5️⃣ Send Email
+        items_text = ""
 
-      {% for item in cart_items %}
-      <div class="flex justify-between py-2 border-b">
-        <span>{{ item.product.name }} ({{ item.quantity }})</span>
-        <span>₹{{ item.subtotal }}</span>
-      </div>
-      {% endfor %}
+        for item in cart_items:
+            product = item["product"]
+            qty = item["quantity"]
+            subtotal = item["subtotal"]
 
-      <div class="mt-4 text-lg font-bold flex justify-between">
-        <span>Total</span>
-        <span>₹{{ total }}</span>
-      </div>
+            items_text += f"{product.name} x {qty} = ₹{subtotal}\n"
 
-      <div class="mt-2 text-sm text-gray-600">
-        COD Charge: ₹{{ cod_charge }}
-      </div>
 
-    </div>
+        send_order_email(f"""
+New Order - ProteinPerks
 
+Order ID: {order.id}
 
-  </div>
+Customer: {customer_data['name']}
+Phone: {customer_data['phone']}
+Email: {customer_data['email']}
 
-</div>
+Total: ₹{order.total_amount}
 
-{% endblock %}
+Items:
+{items_text}
+""")
 
 
+        # 6️⃣ Clear Cart
+        cart_service.clear_cart(request.session)
 
-{% block extra_scripts %}
 
-<script>
+        return JSONResponse({
+            "success": True,
+            "message": "Order placed successfully",
+            "order_id": order.id
+        })
 
-const form = document.getElementById("checkout-form");
-const upiBtn = document.getElementById("upi-btn");
-const codBtn = document.getElementById("cod-btn");
 
+    except Exception as e:
 
-// ================= UPI =================
+        return JSONResponse({
+            "success": False,
+            "message": str(e)
+        }, status_code=500)
 
-upiBtn.addEventListener("click", () => {
 
-  const formData = new FormData(form);
-
-  if (![...formData.values()].every(v => v.trim() !== "")) {
-    alert("Please fill all details first");
-    return;
-  }
-
-  alert(`
-Pay via UPI
-
-UPI ID: 9424862686@ybl
-
-After payment,
-Send screenshot on WhatsApp (7898928129- Harshil Majawdiya)
-or enter Transaction ID.
-`);
-
-});
-
-
-// ================= COD =================
-
-codBtn.addEventListener("click", async () => {
-
-  const formData = new FormData(form);
-
-  // Save customer info
-  const saveRes = await fetch("/checkout/create-order", {
-    method: "POST",
-    body: formData
-  });
-
-  const saveData = await saveRes.json();
-
-  if (!saveData.success) {
-    alert("Fill all details properly");
-    return;
-  }
-
-  // Place COD order
-  const res = await fetch("/checkout/cod", {
-    method: "POST"
-  });
-
-  const data = await res.json();
-
-  if (data.success) {
-
-    alert(data.message);
-    window.location.href = "/";
-
-  } else {
-
-    alert(data.message || "COD Failed. Try again.");
-
-  }
-
-});
-
-</script>
-
-{% endblock %}
+    finally:
+        db.close()
