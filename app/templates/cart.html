@@ -172,15 +172,23 @@ document.addEventListener("DOMContentLoaded", function () {
   // Quantity Buttons
   document.querySelectorAll(".qty-btn").forEach(btn => {
 
-    btn.addEventListener("click", function () {
+    btn.addEventListener("click", async function () {
 
       let id = this.dataset.id;
       let qty = parseInt(this.dataset.qty);
 
       if (qty < 1) return;
 
-      fetch(`/update-cart/${id}/${qty}`)
-        .then(() => location.reload());
+      const formData = new FormData();
+      formData.append("product_id", id);
+      formData.append("quantity", qty);
+
+      await fetch("/cart/update", {
+        method: "POST",
+        body: formData
+      });
+
+      location.reload();
 
     });
 
@@ -190,12 +198,25 @@ document.addEventListener("DOMContentLoaded", function () {
   // Remove Buttons
   document.querySelectorAll(".remove-btn").forEach(btn => {
 
-    btn.addEventListener("click", function () {
+    btn.addEventListener("click", async function () {
 
       let id = this.dataset.id;
 
-      fetch(`/remove-cart/${id}`)
-        .then(() => location.reload());
+      const formData = new FormData();
+      formData.append("product_id", id);
+
+      const res = await fetch("/cart/remove", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        location.reload();
+      } else {
+        alert("Remove failed");
+      }
 
     });
 
@@ -204,5 +225,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
+
 
 {% endblock %}
