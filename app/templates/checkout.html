@@ -34,7 +34,7 @@
         <input name="pincode" placeholder="Pincode" required class="input">
 
 
-        <!-- UPI TXN ID -->
+        <!-- Transaction ID -->
         <input 
           name="txn_id"
           id="txn-id"
@@ -43,27 +43,36 @@
         >
 
 
-        <!-- ================= UPI ================= -->
+        <!-- ================= UPI QR ================= -->
 
-        <!-- UPI QR CODE -->
+        <div class="mt-4 text-center border p-4 rounded bg-gray-50">
 
-<div class="mt-4 text-center border p-4 rounded bg-gray-50">
+          <p class="font-semibold mb-2">
+            Scan QR to Pay via UPI
+          </p>
 
-  <p class="font-semibold mb-2">
-    Scan QR to Pay via UPI
-  </p>
+          <img 
+            src="/static/images/upi_qr.jpeg"
+            alt="UPI QR Code"
+            class="mx-auto w-48 h-48 object-contain border rounded"
+          >
 
-  <img 
-    src="/static/images/upi_qr.png"
-    alt="UPI QR Code"
-    class="mx-auto w-48 h-48 object-contain border rounded"
-  >
+          <p class="text-sm text-gray-600 mt-2">
+            UPI ID: 9424862686@ybl
+          </p>
 
-  <p class="text-sm text-gray-600 mt-2">
-    UPI ID: 9424862686@ybl
-  </p>
+        </div>
 
-</div>
+
+        <!-- ================= UPI BUTTON ================= -->
+
+        <button id="upi-btn"
+          type="button"
+          class="w-full mt-3 bg-blue-600 text-white py-3 rounded">
+
+          Place Order (After UPI Payment)
+
+        </button>
 
 
         <!-- ================= COD ================= -->
@@ -123,7 +132,7 @@ const codBtn = document.getElementById("cod-btn");
 const txnInput = document.getElementById("txn-id");
 
 
-// ================= VALIDATION =================
+// ================= FORM VALIDATION =================
 
 function validateForm() {
 
@@ -149,39 +158,41 @@ upiBtn.addEventListener("click", async () => {
   if (!validateForm()) return;
 
 
-  alert(`
-Pay via UPI
+  if (txnInput.value.trim() === "") {
 
-UPI ID: 9424862686@ybl
+    alert(`
+Please complete UPI payment first.
 
-After payment,
-Give the screenshot of transaction on WhatsApp: 7898928129(Harshil Majawdiya).
-`);
+Scan QR and enter Transaction ID.
+Send screenshot on WhatsApp:
+7898928129 (Harshil Majawdiya)
+    `);
+
+    return;
+  }
 
 
-  // Second click = submit order
-  if (txnInput.value.trim() !== "") {
+  const formData = new FormData(form);
+  formData.append("payment_mode", "UPI");
 
-    const formData = new FormData(form);
-    formData.append("payment_mode", "UPI");
 
-    const res = await fetch("/checkout/place-order", {
-      method: "POST",
-      body: formData
-    });
+  const res = await fetch("/checkout/place-order", {
+    method: "POST",
+    body: formData
+  });
 
-    const data = await res.json();
 
-    if (data.success) {
+  const data = await res.json();
 
-      alert("Order Placed! Order ID: " + data.order_id);
-      window.location.href = "/";
 
-    } else {
+  if (data.success) {
 
-      alert(data.message);
+    alert("Order Placed! Order ID: " + data.order_id);
+    window.location.href = "/";
 
-    }
+  } else {
+
+    alert(data.message);
 
   }
 
@@ -194,15 +205,19 @@ codBtn.addEventListener("click", async () => {
 
   if (!validateForm()) return;
 
+
   const formData = new FormData(form);
   formData.append("payment_mode", "COD");
+
 
   const res = await fetch("/checkout/place-order", {
     method: "POST",
     body: formData
   });
 
+
   const data = await res.json();
+
 
   if (data.success) {
 
