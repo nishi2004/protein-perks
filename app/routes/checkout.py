@@ -2,7 +2,7 @@
 Checkout Routes - Handle checkout flow and order creation
 """
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
@@ -53,30 +53,36 @@ async def checkout_page(request: Request):
 
 
 # ===============================
-# PLACE ORDER (COD / MANUAL UPI)
+# PLACE ORDER (UPI / COD)
 # ===============================
 
 @router.post("/checkout/place-order")
 async def place_order(request: Request):
+
+    print("🔥 PLACE ORDER API HIT")
 
     form = await request.form()
     db = SessionLocal()
 
     try:
 
-        # 1️⃣ Get cart
+        # ================= CART =================
+
         cart_items, total = cart_service.get_cart_items(
             request.session, db
         )
 
+        print("🛒 CART:", cart_items)
+
         if not cart_items:
-            return JSONResponse({
+            return {
                 "success": False,
                 "message": "Cart is empty"
-            })
+            }
 
 
-        # 2️⃣ Customer data
+        # ================= CUSTOMER =================
+
         customer_data = {
             "name": form.get("name"),
             "email": form.get("email"),
@@ -87,16 +93,31 @@ async def place_order(request: Request):
             "pincode": form.get("pincode")
         }
 
+        print("👤 CUSTOMER:", customer_data)
 
-        # 3️⃣ Payment Info (COD / Manual)
+
+        # ================= PAYMENT =================
+
+        payment_mode = form.get("payment_mode")   # UPI / COD
+        txn_id = form.get("txn_id")
+
+
+        if payment_mode == "UPI" and not txn_id:
+            return {
+                "success": False,
+                "message": "Transaction ID required for UPI"
+            }
+
+
         payment_info = {
-            "order_id": None,
-            "payment_id": None,
+            "order_id": txn_id if payment_mode == "UPI" else None,
+            "payment_id": txn_id if payment_mode == "UPI" else None,
             "signature": None
         }
 
 
-        # 4️⃣ Create Order
+        # ================= SAVE ORDER =================
+
         order = order_service.create_order(
             db=db,
             customer_data=customer_data,
@@ -104,11 +125,15 @@ async def place_order(request: Request):
             payment_info=payment_info
         )
 
+        print("✅ ORDER SAVED:", order.id)
 
-        # 5️⃣ Send Email
+
+        # ================= EMAIL =================
+
         items_text = ""
 
         for item in cart_items:
+
             product = item["product"]
             qty = item["quantity"]
             subtotal = item["subtotal"]
@@ -116,10 +141,11 @@ async def place_order(request: Request):
             items_text += f"{product.name} x {qty} = ₹{subtotal}\n"
 
 
-        send_order_email(f"""
+        email_text = f"""
 New Order - ProteinPerks
 
 Order ID: {order.id}
+Payment Mode: {payment_mode}
 
 Customer: {customer_data['name']}
 Phone: {customer_data['phone']}
@@ -129,27 +155,38 @@ Total: ₹{order.total_amount}
 
 Items:
 {items_text}
-""")
+"""
 
 
-        # 6️⃣ Clear Cart
+        send_order_email(email_text)
+
+        print("📧 Email Sent")
+
+
+        # ================= CLEAR CART =================
+
         cart_service.clear_cart(request.session)
 
+        print("🧹 Cart Cleared")
 
-        return JSONResponse({
+
+        return {
             "success": True,
-            "message": "Order placed successfully",
-            "order_id": order.id
-        })
+            "order_id": order.id,
+            "message": "Order placed successfully"
+        }
 
 
     except Exception as e:
 
-        return JSONResponse({
+        print("❌ ORDER ERROR:", e)
+
+        return {
             "success": False,
-            "message": str(e)
-        }, status_code=500)
+            "message": "Server Error: " + str(e)
+        }
 
 
     finally:
+
         db.close()
