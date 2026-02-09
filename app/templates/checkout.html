@@ -126,112 +126,124 @@
 
 <script>
 
-const form = document.getElementById("checkout-form");
-const upiBtn = document.getElementById("upi-btn");
-const codBtn = document.getElementById("cod-btn");
-const txnInput = document.getElementById("txn-id");
+document.addEventListener("DOMContentLoaded", function () {
+
+  const form = document.getElementById("checkout-form");
+  const upiBtn = document.getElementById("upi-btn");
+  const codBtn = document.getElementById("cod-btn");
+  const txnInput = document.getElementById("txn-id");
 
 
-// ================= FORM VALIDATION =================
+  // ================= FORM VALIDATION =================
 
-function validateForm() {
+  function validateForm() {
 
-  const formData = new FormData(form);
+    const formData = new FormData(form);
 
-  for (let val of formData.values()) {
+    for (let val of formData.values()) {
 
-    if (val.trim() === "") {
-      alert("Please fill all details");
-      return false;
+      if (val.trim() === "") {
+        alert("Please fill all details");
+        return false;
+      }
+
     }
 
+    return true;
   }
 
-  return true;
-}
+
+  // ================= UPI =================
+
+  if (upiBtn) {
+
+    upiBtn.addEventListener("click", async function () {
+
+      if (!validateForm()) return;
 
 
-// ================= UPI =================
+      if (txnInput.value.trim() === "") {
 
-upiBtn.addEventListener("click", async () => {
-
-  if (!validateForm()) return;
-
-
-  if (txnInput.value.trim() === "") {
-
-    alert(`
+        alert(`
 Please complete UPI payment first.
 
 Scan QR and enter Transaction ID.
 Send screenshot on WhatsApp:
 7898928129 (Harshil Majawdiya)
-    `);
+        `);
 
-    return;
+        return;
+      }
+
+
+      const formData = new FormData(form);
+      formData.append("payment_mode", "UPI");
+
+
+      const res = await fetch("/checkout/place-order", {
+        method: "POST",
+        body: formData
+      });
+
+
+      const data = await res.json();
+
+
+      if (data.success) {
+
+        alert("Order Placed! Order ID: " + data.order_id);
+        window.location.href = "/";
+
+      } else {
+
+        alert(data.message);
+
+      }
+
+    });
+
   }
 
 
-  const formData = new FormData(form);
-  formData.append("payment_mode", "UPI");
+  // ================= COD =================
+
+  if (codBtn) {
+
+    codBtn.addEventListener("click", async function () {
+
+      if (!validateForm()) return;
 
 
-  const res = await fetch("/checkout/place-order", {
-    method: "POST",
-    body: formData
-  });
+      const formData = new FormData(form);
+      formData.append("payment_mode", "COD");
 
 
-  const data = await res.json();
+      const res = await fetch("/checkout/place-order", {
+        method: "POST",
+        body: formData
+      });
 
 
-  if (data.success) {
+      const data = await res.json();
 
-    alert("Order Placed! Order ID: " + data.order_id);
-    window.location.href = "/";
 
-  } else {
+      if (data.success) {
 
-    alert(data.message);
+        alert("Order Placed! Order ID: " + data.order_id);
+        window.location.href = "/";
+
+      } else {
+
+        alert(data.message);
+
+      }
+
+    });
 
   }
 
 });
-
-
-// ================= COD =================
-
-codBtn.addEventListener("click", async () => {
-
-  if (!validateForm()) return;
-
-
-  const formData = new FormData(form);
-  formData.append("payment_mode", "COD");
-
-
-  const res = await fetch("/checkout/place-order", {
-    method: "POST",
-    body: formData
-  });
-
-
-  const data = await res.json();
-
-
-  if (data.success) {
-
-    alert("Order Placed! Order ID: " + data.order_id);
-    window.location.href = "/";
-
-  } else {
-
-    alert(data.message);
-
-  }
-
-});
-
 </script>
+
 
 {% endblock %}
