@@ -128,21 +128,29 @@
 
 document.addEventListener("DOMContentLoaded", function () {
 
+  console.log("✅ Checkout JS Loaded");
+
   const form = document.getElementById("checkout-form");
   const upiBtn = document.getElementById("upi-btn");
   const codBtn = document.getElementById("cod-btn");
   const txnInput = document.getElementById("txn-id");
 
 
-  // ================= FORM VALIDATION =================
+  if (!form || !upiBtn || !codBtn) {
+    console.error("❌ Button/Form Missing");
+    return;
+  }
 
-  function validateForm() {
 
-    const formData = new FormData(form);
+  // ================= VALIDATE =================
 
-    for (let val of formData.values()) {
+  function validate() {
 
-      if (val.trim() === "") {
+    const inputs = form.querySelectorAll("input, textarea");
+
+    for (let i of inputs) {
+
+      if (i.hasAttribute("required") && i.value.trim() === "") {
         alert("Please fill all details");
         return false;
       }
@@ -155,75 +163,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ================= UPI =================
 
-  if (upiBtn) {
+  upiBtn.onclick = async function () {
 
-    upiBtn.addEventListener("click", async function () {
+    console.log("🟦 UPI Clicked");
 
-      if (!validateForm()) return;
-
-
-      if (txnInput.value.trim() === "") {
-
-        alert(`
-Please complete UPI payment first.
-
-Scan QR and enter Transaction ID.
-Send screenshot on WhatsApp:
-7898928129 (Harshil Majawdiya)
-        `);
-
-        return;
-      }
+    if (!validate()) return;
 
 
-      const formData = new FormData(form);
-      formData.append("payment_mode", "UPI");
+    if (txnInput.value.trim() === "") {
+
+      alert("Please enter UPI Transaction ID after payment");
+      return;
+    }
 
 
-      const res = await fetch("/checkout/place-order", {
-        method: "POST",
-        body: formData
-      });
+    const formData = new FormData(form);
+    formData.append("payment_mode", "UPI");
 
 
-      const data = await res.json(); 
-      if (data.success) {
-
-  alert(`
- 🎉 Order Confirmed!
-
-  Order ID: ${data.order_id}
-
-  Please send your UPI payment screenshot on WhatsApp for verification.
-
-  📱 WhatsApp: 7898928129
-  (Name: Harshil Majawdiya)
-
-Your order will be processed after confirmation.
-  `);
-
-  window.location.href = "/";
-
-}
-
-      
-    });
-
-  }
-
-
-  // ================= COD =================
-
-  if (codBtn) {
-
-    codBtn.addEventListener("click", async function () {
-
-      if (!validateForm()) return;
-
-
-      const formData = new FormData(form);
-      formData.append("payment_mode", "COD");
-
+    try {
 
       const res = await fetch("/checkout/place-order", {
         method: "POST",
@@ -233,29 +191,92 @@ Your order will be processed after confirmation.
 
       const data = await res.json();
 
+      console.log("📦 Response:", data);
+
 
       if (data.success) {
 
-  alert(`
+        alert(`
 🎉 Order Confirmed!
 
 Order ID: ${data.order_id}
 
-Your Cash On Delivery order has been placed successfully.
+Send payment screenshot on WhatsApp:
+7898928129
+        `);
 
-Thank you for shopping with ProteinPerks 💪
-  `);
+        window.location.href = "/";
 
-  window.location.href = "/";
+      } else {
 
-}
+        alert(data.message || "Order failed");
 
-    });
+      }
 
-  }
+    } catch (err) {
+
+      console.error("❌ Fetch Error:", err);
+      alert("Server error. Try again.");
+
+    }
+
+  };
+
+
+  // ================= COD =================
+
+  codBtn.onclick = async function () {
+
+    console.log("🟩 COD Clicked");
+
+    if (!validate()) return;
+
+
+    const formData = new FormData(form);
+    formData.append("payment_mode", "COD");
+
+
+    try {
+
+      const res = await fetch("/checkout/place-order", {
+        method: "POST",
+        body: formData
+      });
+
+
+      const data = await res.json();
+
+      console.log("📦 Response:", data);
+
+
+      if (data.success) {
+
+        alert(`
+🎉 Order Confirmed!
+
+Order ID: ${data.order_id}
+
+Thank you for shopping 💪
+        `);
+
+        window.location.href = "/";
+
+      } else {
+
+        alert(data.message || "Order failed");
+
+      }
+
+    } catch (err) {
+
+      console.error("❌ Fetch Error:", err);
+      alert("Server error. Try again.");
+
+    }
+
+  };
 
 });
 </script>
-
 
 {% endblock %}
