@@ -183,7 +183,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     try {
 
-      const res = await fetch("/checkout/place-order", {
+      const res = await fetch("https://proteinperks.in/checkout/place-order", {
+
         method: "POST",
         body: formData
       });
