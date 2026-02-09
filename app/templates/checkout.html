@@ -186,20 +186,27 @@ Send screenshot on WhatsApp:
       });
 
 
-      const data = await res.json();
-
-
+      const data = await res.json(); 
       if (data.success) {
 
-        alert("Order Placed! Order ID: " + data.order_id);
-        window.location.href = "/";
+  alert(`
+ 🎉 Order Confirmed!
 
-      } else {
+  Order ID: ${data.order_id}
 
-        alert(data.message);
+  Please send your UPI payment screenshot on WhatsApp for verification.
 
-      }
+  📱 WhatsApp: 7898928129
+  (Name: Harshil Majawdiya)
 
+Your order will be processed after confirmation.
+  `);
+
+  window.location.href = "/";
+
+}
+
+      
     });
 
   }
