@@ -26,16 +26,7 @@ class Order(Base):
     total_amount = Column(Float, nullable=False)  # Total order amount in rupees
     order_status = Column(String(50), default="pending")  # pending, confirmed, shipped, delivered, cancelled
     
-    # Payment Information
-    razorpay_order_id = Column(String(100), nullable=True)
-    razorpay_payment_id = Column(String(100), nullable=True)
-    razorpay_signature = Column(String(200), nullable=True)
-    payment_status = Column(String(50), default="pending")  # pending, success, failed
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     
@@ -54,7 +45,6 @@ class OrderItem(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     
     # Product Information (snapshot at time of order)
-    product_id = Column(Integer, nullable=False)
     product_name = Column(String(200), nullable=False)
     product_brand = Column(String(100), nullable=False)
     product_weight = Column(String(50), nullable=False)
