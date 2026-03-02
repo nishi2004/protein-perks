@@ -52,21 +52,35 @@
                 <div class="flex items-center space-x-4">
 
     <!-- Search Form -->
-    <form action="{{ url_for('search_products') }}" method="GET" class="hidden md:flex">
+    <div class="flex items-center space-x-4">
+
+    <!-- Desktop Search -->
+    <form action="{{ url_for('search_products') }}" method="GET" 
+          class="hidden md:flex">
         <input 
             type="text" 
             name="q" 
             placeholder="Search products..." 
             class="px-3 py-1 border rounded-l-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            required
-        >
+            required>
         <button 
             type="submit" 
-            class="bg-indigo-600 text-white px-3 py-1 rounded-r-md text-sm hover:bg-indigo-700 transition"
-        >
+            class="bg-indigo-600 text-white px-3 py-1 rounded-r-md text-sm hover:bg-indigo-700 transition">
             Search
         </button>
     </form>
+
+    <!-- Mobile Search Icon -->
+    <a href="/search" class="md:hidden text-gray-700 hover:text-indigo-600">
+        🔍
+    </a>
+
+    <!-- Cart Icon -->
+    <a href="/cart" class="relative text-gray-700 hover:text-indigo-600 transition">
+        <!-- your cart svg -->
+    </a>
+
+</div>
 
     <!-- Cart Icon -->
     <a href="/cart" class="relative text-gray-700 hover:text-indigo-600 transition">
