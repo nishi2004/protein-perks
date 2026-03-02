@@ -16,16 +16,7 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/main.css">
 
-    <form action="{{ url_for('search.search_products') }}" method="GET" class="d-flex">
-    <input class="form-control me-2" 
-           type="search" 
-           name="q" 
-           placeholder="Search protein, brand..." 
-           required>
-    <button class="btn btn-outline-success" type="submit">
-        Search
-    </button>
-</form>
+    
     
     <style>
         body {
@@ -58,14 +49,38 @@
                 </div>
                 
                 <!-- Cart Icon -->
-                <div class="flex items-center">
-                    <a href="/cart" class="relative text-gray-700 hover:text-indigo-600 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                        <span id="cart-count" class="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                            {{ cart_count|default(0) }}
-                        </span>
+                <div class="flex items-center space-x-4">
+
+    <!-- Search Form -->
+    <form action="{{ url_for('search_products') }}" method="GET" class="hidden md:flex">
+        <input 
+            type="text" 
+            name="q" 
+            placeholder="Search products..." 
+            class="px-3 py-1 border rounded-l-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required
+        >
+        <button 
+            type="submit" 
+            class="bg-indigo-600 text-white px-3 py-1 rounded-r-md text-sm hover:bg-indigo-700 transition"
+        >
+            Search
+        </button>
+    </form>
+
+    <!-- Cart Icon -->
+    <a href="/cart" class="relative text-gray-700 hover:text-indigo-600 transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+        <span id="cart-count" 
+        class="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+            {{ cart_count|default(0) }}
+        </span>
+    </a>
+
+</div>
                     </a>
                 </div>
             </div>
