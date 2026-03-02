@@ -9,7 +9,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get("/search", response_class=HTMLResponse)
+@router.get("/search", response_class=HTMLResponse, name="search_products")
 def search_products(request: Request, q: str = ""):
     db = SessionLocal()
 
