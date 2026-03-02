@@ -8,6 +8,7 @@ from app.routes.products import router as products_router
 from app.routes.checkout import router as checkout_router
 from app.routes.payment import router as payment_router
 from app.core.database import init_db
+from app.routes.search_routes import router as search_router
 
 
 app = FastAPI(title="Protein Perks - Premium Supplements Store")
@@ -18,12 +19,15 @@ app.add_middleware(SessionMiddleware, secret_key="proteinperks_secret_key_2024")
 # Static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+
+
 # Include routers
 app.include_router(home_router)
 app.include_router(products_router)
 app.include_router(cart_router)
 app.include_router(checkout_router)
 app.include_router(payment_router)
+app.include_router(search_router)
 
 
 @app.on_event("startup")

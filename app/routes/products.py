@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from app.core.database import SessionLocal
 from app.models.product import Product
 from app.services import cart_service
+from app.models.product import Product
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")

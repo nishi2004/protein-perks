@@ -15,6 +15,17 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/main.css">
+
+    <form action="{{ url_for('search.search_products') }}" method="GET" class="d-flex">
+    <input class="form-control me-2" 
+           type="search" 
+           name="q" 
+           placeholder="Search protein, brand..." 
+           required>
+    <button class="btn btn-outline-success" type="submit">
+        Search
+    </button>
+</form>
     
     <style>
         body {
